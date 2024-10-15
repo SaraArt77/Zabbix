@@ -1,0 +1,239 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: 7df96b18c230490a9a0a9e2307226338
+      name: Templates
+  templates:
+    - uuid: 3d1f20354461478f839d27bc5330b374
+      template: 'Sonicwall SNMP con Autodiscovery'
+      name: 'Sonicwall SNMP con Autodiscovery'
+      description: |
+        Autodiscover delle interfacce HA incluso :-)
+        Sara Art 2024
+      templates:
+        - name: 'Serial Number'
+      groups:
+        - name: Templates
+      items:
+        - uuid: 4c35b4f58ee846d1b360cc4f258fb288
+          name: 'Simultaneous connections'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.4.1.8741.1.3.1.2.0
+          key: sonicCurrentConnCacheEntries.0
+          delay: 5m
+          history: 90d
+          triggers:
+            - uuid: 3175a6fbc8ea47d082d51674e6911654
+              expression: 'min(/Sonicwall SNMP con Autodiscovery/sonicCurrentConnCacheEntries.0,300s)>{$CONEXOES_ELEVADAS}'
+              name: 'Numero di sessioni contemporanee massimo a  {$CONEXOES_ELEVADAS}, valore attuale  {ITEM.LASTVALUE}'
+              priority: HIGH
+        - uuid: dbfc202c3e98483bb43586120108ae83
+          name: 'CPU Load'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.4.1.8741.1.3.1.3.0
+          key: sonicCurrentCPUUtil.0
+          delay: 5m
+          history: 90d
+          units: '%'
+          triggers:
+            - uuid: 2ca989dbcdda49f0a762425d9cf44056
+              expression: 'avg(/Sonicwall SNMP con Autodiscovery/sonicCurrentCPUUtil.0,300s)>90'
+              name: 'Consumo di CPU superiore a 90% per 5 minuti.'
+              priority: WARNING
+        - uuid: 80747c7bdf794027abed15bee6b4573d
+          name: RAM
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.4.1.8741.1.3.1.4.0
+          key: sonicCurrentRAMUtil.0
+          delay: 5m
+          history: 90d
+          units: '%'
+          triggers:
+            - uuid: 338731ae57944c479fc4ea230f05e77f
+              expression: 'min(/Sonicwall SNMP con Autodiscovery/sonicCurrentRAMUtil.0,300s)>95'
+              name: 'Consumo di memoria superiore 95% per 5 minuti'
+              priority: WARNING
+        - uuid: f8159c4c82364640b6bc5cbcf18da988
+          name: 'Firmware Version'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.4.1.8741.2.1.1.3.0
+          key: sonicFirmwareVersion
+          delay: 5m
+          history: 90d
+          value_type: TEXT
+          trends: '0'
+        - uuid: 0e8cea19ee2e4c3d88f0dae38d724175
+          name: Model
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.4.1.8741.2.1.1.1.0
+          key: sonicModel
+          delay: 1d
+          history: 90d
+          value_type: TEXT
+          trends: '0'
+        - uuid: a2ff07e2ec444f52bd110060c7abd327
+          name: 'Serial Number'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.4.1.8741.2.1.1.2.0
+          key: sonicSerialNumber
+          delay: 10m
+          history: 90d
+          value_type: TEXT
+          trends: '0'
+        - uuid: 047214ee7f044d36be75abec72e55d09
+          name: 'Sonicwall Up Time'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.3.0
+          key: sysUpTime.0
+          delay: 5m
+          history: 90d
+          units: uptime
+          triggers:
+            - uuid: 32087cb1527a416a93cdd6b1498fb52f
+              expression: 'last(/Sonicwall SNMP con Autodiscovery/sysUpTime.0)<800'
+              name: 'Firewall è stato appena riavviato'
+              priority: INFO
+            - uuid: 6316ae876b534c35b82d7e57c186d490
+              expression: 'nodata(/Sonicwall SNMP con Autodiscovery/sysUpTime.0,30m)=1'
+              name: 'Snmp do not answer at sysUpTime'
+              priority: HIGH
+      discovery_rules:
+        - uuid: 659ac5f5a0d14fe89ed55f5df6c6fb15
+          name: Interfacce
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#SNMPVALUE},IF-MIB::ifDescr]'
+          key: ifDescr
+          delay: 1h
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#SNMPVALUE}'
+                value: (MGMT)
+                operator: NOT_MATCHES_REGEX
+                formulaid: A
+              - macro: '{#SNMPVALUE}'
+                value: (U0)
+                operator: NOT_MATCHES_REGEX
+                formulaid: B
+              - macro: '{#SNMPVALUE}'
+                value: (Unassigned)
+                operator: NOT_MATCHES_REGEX
+                formulaid: C
+          lifetime: 30d
+          enabled_lifetime_type: DISABLE_NEVER
+          item_prototypes:
+            - uuid: b504288c9503413496ef5934903eb812
+              name: '{#SNMPVALUE}'
+              type: SNMP_AGENT
+              snmp_oid: 'IF-MIB::ifDescr.{#SNMPINDEX}'
+              key: 'ifDescr[{#SNMPVALUE}]'
+              delay: 1h
+              value_type: CHAR
+              trends: '0'
+            - uuid: d98a78eb62794716b3ba1e8110eda262
+              name: '{#SNMPVALUE} In Discards'
+              type: SNMP_AGENT
+              snmp_oid: 'IF-MIB:ifInDiscards.{#SNMPINDEX}'
+              key: 'ifInDiscards[{#SNMPVALUE}]'
+              delay: 10m
+              tags:
+                - tag: Application
+                  value: Network
+            - uuid: 4d96fb5e47334ee98c86f99a44768fcb
+              name: '{#SNMPVALUE} Inbound errors'
+              type: SNMP_AGENT
+              snmp_oid: 'IF-MIB::ifInErrors.{#SNMPINDEX}'
+              key: 'ifInErrors[{#SNMPVALUE}]'
+              delay: 10m
+              tags:
+                - tag: Application
+                  value: Network
+            - uuid: 106854a4cb164362949b5513215acde7
+              name: '{#SNMPVALUE} Incoming traffic'
+              type: SNMP_AGENT
+              snmp_oid: 'IF-MIB::ifInOctets.{#SNMPINDEX}'
+              key: 'ifInOctets[{#SNMPVALUE}]'
+              units: bps
+              preprocessing:
+                - type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+                - type: MULTIPLIER
+                  parameters:
+                    - '8'
+              tags:
+                - tag: Application
+                  value: Network
+              trigger_prototypes:
+                - uuid: e8c92b011a2a42f4a13746e629c6e52e
+                  expression: 'last(/Sonicwall SNMP con Autodiscovery/ifInOctets[{#SNMPVALUE}],#3)<50'
+                  name: 'Verificare linea su {#SNMPVALUE}'
+                  opdata: '{ITEM.LASTVALUE1}'
+                  priority: HIGH
+                  manual_close: 'YES'
+            - uuid: 7e1c448fa9fa484a99813a3ba803bd3f
+              name: '{#SNMPVALUE} Status'
+              type: SNMP_AGENT
+              snmp_oid: 'IF-MIB::ifOperStatus.{#SNMPINDEX}'
+              key: 'ifOperStatus[{#SNMPVALUE}]'
+              delay: 10m
+              valuemap:
+                name: 'Action SNMP interface status (ifOperStatus)'
+              tags:
+                - tag: Application
+                  value: Availability
+              trigger_prototypes:
+                - uuid: 3cbcb3ac958e484284be1a22f43e38e5
+                  expression: 'change(/Sonicwall SNMP con Autodiscovery/ifOperStatus[{#SNMPVALUE}])=1'
+                  name: 'Lo stato della porta {#SNMPVALUE} è cambiato - verificare'
+                  opdata: '{ITEM.LASTVALUE1}'
+                  priority: HIGH
+                  manual_close: 'YES'
+            - uuid: dfeb6b63ba45448baeb5e337d369b077
+              name: '{#SNMPVALUE} Out Discards'
+              type: SNMP_AGENT
+              snmp_oid: 'IF-MIB:ifOutDiscards.{#SNMPINDEX}'
+              key: 'ifOutDiscards[{#SNMPVALUE}]'
+              delay: 10m
+              tags:
+                - tag: Application
+                  value: Network
+            - uuid: 2227920283e14c558d54ec0d8b348ea5
+              name: '{#SNMPVALUE} Outbound errors'
+              type: SNMP_AGENT
+              snmp_oid: 'IF-MIB::ifOutErrors.{#SNMPINDEX}'
+              key: 'ifOutErrors[{#SNMPVALUE}]'
+              delay: 10m
+              tags:
+                - tag: Application
+                  value: Network
+            - uuid: d593c42732d74ccf8e3b33b0fbacc7b4
+              name: '{#SNMPVALUE} Outgoing traffic'
+              type: SNMP_AGENT
+              snmp_oid: 'IF-MIB::ifOutOctets.{#SNMPINDEX}'
+              key: 'ifOutOctets[{#SNMPVALUE}]'
+              delay: 10m
+              units: bps
+              preprocessing:
+                - type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+                - type: MULTIPLIER
+                  parameters:
+                    - '8'
+              tags:
+                - tag: Application
+                  value: Network
+      macros:
+        - macro: '{$CONEXOES_ELEVADAS}'
+          value: '15000'
+        - macro: '{$SNMP_COMMUNITY}'
+          value: public
+      valuemaps:
+        - uuid: c147823295a04a35bb892cfb2d500d86
+          name: 'Action SNMP interface status (ifOperStatus)'
+          mappings:
+            - value: '1'
+              newvalue: Up
+            - value: '2'
+              newvalue: Down
